@@ -12,7 +12,7 @@ var (
 	messageSaveList map[string][]string          = map[string][]string{}          //消息列表
 	userSaveMap     map[string]map[string]string = map[string]map[string]string{} //用户列表
 
-	sendWaitTime int64 = 5000 // 等待时间，单位毫秒
+	sendWaitTime int64 = 100 // 等待时间，单位毫秒
 )
 var (
 	timeZoneInt     int    = 8               //时区

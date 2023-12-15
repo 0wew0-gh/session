@@ -72,7 +72,7 @@ func sse(w http.ResponseWriter, req *http.Request, c chan []byte) {
 				runMsgKey[k] = "run"
 				fmt.Println(">>>>>>>>>>>>", k, runMsgKey)
 			}
-			fmt.Println("SSE tick", fsid[0], messageSaveList, runMsgKey, keys)
+			// fmt.Println("SSE tick", fsid[0], messageSaveList, runMsgKey, keys)
 			sort.Slice(keys, func(i, j int) bool {
 				ki := strings.Split(keys[i], "_")[1]
 				kj := strings.Split(keys[j], "_")[1]
@@ -104,7 +104,6 @@ func sse(w http.ResponseWriter, req *http.Request, c chan []byte) {
 					continue
 				}
 			}
-			fmt.Println(">>>>>", getKeys)
 
 			if len(getKeys) <= 0 {
 				times++

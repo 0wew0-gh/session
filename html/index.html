@@ -364,7 +364,7 @@
       }
       const sendBtn = document.getElementById("session-send-msg-btn");
       // 保存原来的按钮内容
-      var originalContent = sendBtn.innerHTML;
+      var originalContent = `<i class="mdi mdi-send"></i>`;
 
       const formData = new FormData();
       if (token != null && token.length > 0) {
@@ -402,7 +402,7 @@
         .then((response) => response.json())
         .then((res) => {
           // console.log(">>>", res);
-          sendBtn.disabled = true;
+          sendBtn.disabled = false;
           sendBtn.innerHTML = originalContent;
           isSending = false;
           switch (res.code) {
@@ -444,7 +444,7 @@
           }
         })
         .catch((error) => {
-          sendBtn.disabled = true;
+          sendBtn.disabled = false;
           sendBtn.innerHTML = originalContent;
           isSending = false;
           console.log(error);
