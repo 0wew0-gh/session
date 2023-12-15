@@ -1,0 +1,49 @@
+{
+    "dbSetting": {
+        "mysql": {
+            "mysql_user": "0wew0",
+            "mysql_pwd": "7%5cfM3!&pw9^#6j",
+            "mysql_addr": "127.0.0.1",
+            "mysql_port": "3306",
+            "mysql_db": "official_website",
+            "mysql_limit": "100"
+        },
+        "redis": {
+            "redis_addr": "127.0.0.1",
+            "redis_port": "6379",
+            "redis_pwd": ""
+        },
+        "redis_max_db": 15,
+        "maxLinkNumber": {
+            "mysql": 50,
+            "redis": 20
+        },
+        "waitCount": 10,
+        "waitTime": 500
+    },
+    "config": {
+        "returnMessageFilePath": "./code.csv",
+        "timeZone": [
+            8,
+            "Asia/Shanghai"
+        ],
+        "lang": [
+            "en",
+            "zhHans",
+            "zhHant",
+            "es"
+        ],
+        "suburl": "/",
+        "handleFuncKeyList": [
+            "login/",
+            "sendMsg/",
+            "sse/"
+        ],
+        "defaultLocaleID": 1,
+        "listenandserve": "36041",
+        "redis_vcode_db": 1,
+        "redis_login_db": 3,
+        "redis_session_db": 4,
+        "token_save_time": 10
+    }
+}

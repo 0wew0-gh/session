@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="mdi.css" rel="stylesheet" />
+    <script src="session.js"></script>
+    <title>Document</title>
+  </head>
+  <body>
+    <button id="openSessionView" class="icon-button">
+      <i class="mdi mdi-chat-processing"></i>
+    </button>
+
+    <div id="session-background">
+      <div id="session-view">
+        <div id="session-title">
+          <input
+            id="session-mail"
+            type="text"
+            value=""
+            placeholder="为了方便交流，请输入您的邮件地址"
+          />
+        </div>
+        <div id="session-content"></div>
+        <div id="session-send-bar">
+          <input
+            id="session-send-msg-input"
+            type="text"
+            value=""
+            placeholder="请输入您的消息"
+          />
+          <button id="session-send-msg-btn" onclick="sendMessage()">
+            <i class="mdi mdi-send"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </body>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      document
+        .getElementById("openSessionView")
+        .addEventListener("click", function () {
+          token = localStorage.getItem("token");
+          selfMail = localStorage.getItem("user");
+          sessionID = localStorage.getItem("sessionID");
+          if (token == null) {
+            getGuestToken()
+              .then(() => {
+                console.log(">>> getGuestToken Done <<<");
+                getMessage();
+              })
+              .catch((error) => {
+                console.log(error);
+                // TODO: 提示 获取 token 失败
+                return;
+              });
+          } else {
+            checkToken().then((res) => {
+              if (res) {
+                console.log(">>> checkToken Done <<<");
+                getMessage();
+              } else {
+                getGuestToken()
+                  .then(() => {
+                    console.log(">>> getGuestToken Done <<<");
+                    getMessage();
+                  })
+                  .catch((error) => {
+                    console.log(error);
+                    // TODO: 提示 获取 token 失败
+                    return;
+                  });
+              }
+            });
+          }
+
+          const sessionBackground =
+            document.getElementById("session-background");
+          const sessionView = document.getElementById("session-view");
+
+          sessionBackground.style.display = "block";
+
+          // 防止拖动时误触点击事件
+          let isDragging = false;
+          sessionBackground.addEventListener("mousedown", function (event) {
+            isDragging = false;
+          });
+          sessionBackground.addEventListener("mousemove", function (event) {
+            isDragging = true;
+          });
+          // 防止拖动时误触点击事件 方法2
+          // sessionBackground.addEventListener("mousedown", function (event) {
+          //   isDragging = false;
+          //   sessionBackground.addEventListener("mousemove", handleMouseMove);
+          // });
+          // sessionBackground.addEventListener("mouseup", function (event) {
+          //   sessionBackground.removeEventListener("mousemove", handleMouseMove);
+          // });
+          // function handleMouseMove(event) {
+          //   isDragging = true;
+          // }
+          // 点击背景关闭会话窗口
+          sessionBackground.addEventListener("click", function () {
+            if (!isDragging) {
+              sessionView.classList.remove("open");
+              sessionView.classList.add("close");
+              messageList = [];
+              msgContent.innerHTML = "";
+              setTimeout(function () {
+                sessionBackground.style.display = "none";
+              }, 300); // 等待动画完成后再隐藏 session-view
+            }
+          });
+
+          setTimeout(function () {
+            sessionView.classList.remove("close");
+            sessionView.classList.add("open");
+          }, 0);
+          sse();
+          sessionView.addEventListener("click", function (event) {
+            event.stopPropagation();
+          });
+        });
+      //   token = "bddb3db07611d03d18dd5e0412b936f8";
+
+      const msgContent = document.getElementById("session-content");
+      msgContent.addEventListener("scroll", function () {
+        const scrollTop = msgContent.scrollTop;
+        const scrollHeight = msgContent.scrollHeight;
+        const clientHeight = msgContent.clientHeight;
+        if (scrollTop + clientHeight >= scrollHeight) {
+          isScroll = true;
+        } else {
+          isScroll = false;
+        }
+      });
+
+      const sendInput = document.getElementById("session-send-msg-input");
+      sendInput.addEventListener("keydown", function (event) {
+        if (event.keyCode == 13) {
+          sendMessage();
+        }
+      });
+    });
+
+    let messageList = []; // 消息列表
+    let userMap = null; // 用户列表
+    let selfMail = ""; // 用户邮箱
+    let selfID = null; // 用户ID
+    let sessionID = null; // 会话ID
+    let token = null; // token
+    let source = null; // SSE对象
+    let isScroll = true; // 是否滚动到最下
+    let isSending = false; // 是否正在发送消息
+
+    const api = "http://127.0.0.1:36040";
+    const api2 = "http://127.0.0.1:36041";
+
+    function getGuestToken() {
+      token = null;
+      selfMail = null;
+      sessionID = null;
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      localStorage.removeItem("sessionID");
+      const formData = new FormData();
+      formData.append("g", 1);
+
+      return fetch(api + "/login/", {
+        method: "POST",
+        body: formData,
+      })
+        .then((response) => response.json())
+        .then((res) => {
+          // console.log(">>>", res);
+          if (res.code == 10000) {
+            const data = res.data;
+            token = data.token;
+            selfMail = data.mail;
+            localStorage.setItem("token", token);
+            localStorage.setItem("user", selfMail);
+            // console.log("> token >", token);
+            // console.log("> mail >", selfMail);
+          }
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+    }
+
+    function checkToken() {
+      if (token == null) {
+        // TODO: 提示 token 为空
+        return;
+      }
+      const formData = new FormData();
+      formData.append("t", token);
+
+      return fetch(`${api}/checkToken/`, {
+        method: "POST",
+        body: formData,
+      })
+        .then((response) => response.json())
+        .then((res) => {
+          switch (res.code) {
+            case 10000:
+              return true;
+              break;
+
+            default:
+              return false;
+              break;
+          }
+        });
+    }
+
+    function getMessage() {
+      if (sessionID == null) {
+        return;
+      }
+      const formData = new FormData();
+      formData.append("sid", sessionID);
+      formData.append("o", "time");
+      formData.append("osc", "DESC");
+      formData.append("lt", "0,200");
+      formData.append("l", 2);
+
+      fetch(api + "/getMessage/", {
+        method: "POST",
+        body: formData,
+      })
+        .then((response) => response.json())
+        .then((res) => {
+          switch (res.code) {
+            case 10000:
+              const data = res.data.msg;
+              const user = res.data.user;
+              const mail = res.data.mail;
+              // console.log(data);
+              // console.log(user);
+              if (messageList.length == 0) {
+                messageList = data;
+              } else {
+                messageList = messageList.concat(data);
+              }
+              if (userMap == null) {
+                userMap = user;
+              } else {
+                for (const key in user) {
+                  if (!Object.prototype.hasOwnProperty.call(userMap, key)) {
+                    userMap[key] = user[key];
+                  }
+                }
+              }
+              handleMessage(messageList);
+              setTimeout(function () {
+                scrollBottom(300);
+              }, 350);
+              break;
+            case 10001:
+            case 10002:
+            case 10003:
+              break;
+            case 3900:
+              token = null;
+              localStorage.removeItem("token");
+              getGuestToken()
+                .then(() => {
+                  console.log(">>> getGuestToken Done <<<");
+                  getMessage();
+                })
+                .catch((error) => {
+                  console.log(error);
+                  // TODO: 提示 获取 token 失败
+                  return;
+                });
+            default:
+              break;
+          }
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+    }
+
+    function sse() {
+      sseClose();
+      if (sessionID == null) {
+        return;
+      }
+      const params = new URLSearchParams({
+        sid: sessionID,
+      });
+      source = new EventSource(`${api2}/sse/?${params}`);
+      source.onmessage = function (event) {
+        // console.log(">>> onmessage <<<");
+        // console.log(event.data);
+        let ed = {};
+        let newMsgList = [];
+        try {
+          ed = JSON.parse(event.data);
+        } catch (error) {
+          console.log(error);
+          return;
+        }
+        // console.log(ed);
+        for (let i = 0; i < ed.length; i++) {
+          const e = ed[i];
+          let isHave = false;
+          // console.log(e);
+          let userID = e.userID;
+          if (userID == "") {
+            for (const key in userMap) {
+              if (Object.prototype.hasOwnProperty.call(userMap, key)) {
+                const uMe = userMap[key];
+                if (uMe.mail == e.user.mail) {
+                  isHave = true;
+                  userID = key;
+                  break;
+                }
+              }
+            }
+            if (!isHave) {
+              userMap["-1"] = {
+                nick: e.user.nick,
+                mail: e.user.mail,
+              };
+            }
+          } else {
+            isHave = true;
+
+            if (!Object.prototype.hasOwnProperty.call(userMap, userID)) {
+              userMap[userID] = {
+                nick: e.user.nick,
+                mail: e.user.mail,
+              };
+            }
+          }
+          newMsgList.push({
+            id: "-1",
+            sid: sessionID,
+            content: e.content,
+            time: e.time,
+            userID: isHave ? userID : "-1",
+          });
+          // console.log(">>", newMsgList);
+        }
+        messageList = messageList.concat(newMsgList);
+        // console.log("=== sse ===");
+        // console.log(newMsgList);
+        // console.log(messageList);
+        // console.log(userMap);
+        handleMessage(newMsgList);
+        scrollBottom(300);
+      };
+    }
+
+    function sendMessage() {
+      if (isSending) {
+        return;
+      }
+      const sendBtn = document.getElementById("session-send-msg-btn");
+      // 保存原来的按钮内容
+      var originalContent = sendBtn.innerHTML;
+
+      const formData = new FormData();
+      if (token != null && token.length > 0) {
+        formData.append("t", token);
+      } else if (selfMail != null && selfMail.length > 0) {
+        formData.append("m", selfMail);
+      } else {
+        return;
+      }
+      let isSSE = false;
+      if (sessionID != null && sessionID.length > 0) {
+        formData.append("sid", sessionID);
+      } else {
+        isSSE = true;
+      }
+      const msgInput = document.getElementById("session-send-msg-input");
+      if (msgInput == null || msgInput.value.length == 0) {
+        // TODO: 提示消息不能为空
+        sendBtn.innerHTML = '<i class="mdi mdi-alert error"></i>';
+        setTimeout(function () {
+          sendBtn.innerHTML = originalContent;
+        }, 1000);
+        return;
+      }
+      formData.append("msg", msgInput.value);
+      isSending = true;
+      sendBtn.disabled = true;
+      // 将按钮的内容替换为一个加载动画
+      sendBtn.innerHTML = '<i class="mdi mdi-loading mdi-spin"></i>';
+
+      fetch(api2 + "/sendMsg/", {
+        method: "POST",
+        body: formData,
+      })
+        .then((response) => response.json())
+        .then((res) => {
+          // console.log(">>>", res);
+          sendBtn.disabled = true;
+          sendBtn.innerHTML = originalContent;
+          isSending = false;
+          switch (res.code) {
+            case 10000:
+              msgInput.value = "";
+              const data = res.data;
+              selfID = data.userID;
+              sessionID = data.sessionID;
+              localStorage.setItem("sessionID", sessionID);
+              if (isSSE) {
+                sse();
+              }
+              if (selfMail != data.mail) {
+                // TODO: 提示 本地保存的邮箱 与 token 中的邮箱不匹配
+                // 考虑是否需要更新 本地保存的邮箱
+                // selfMail = data.mail;
+                // localStorage.setItem("user", selfMail);
+              }
+              break;
+            case 10001:
+            case 10002:
+            case 10003:
+              break;
+            case 3900:
+              getGuestToken()
+                .then(() => {
+                  console.log(">>> getGuestToken Done <<<");
+                  getMessage();
+                })
+                .catch((error) => {
+                  console.log(error);
+                  // TODO: 提示 获取 token 失败
+                  return;
+                });
+
+            default:
+              console.log("other error", res);
+              break;
+          }
+        })
+        .catch((error) => {
+          sendBtn.disabled = true;
+          sendBtn.innerHTML = originalContent;
+          isSending = false;
+          console.log(error);
+        });
+    }
+    function sseClose() {
+      if (source != null) {
+        source.close();
+        source = null;
+      }
+    }
+    function handleMessage(msgs) {
+      const sessionContent = document.getElementById("session-content");
+      for (let i = 0; i < msgs.length; i++) {
+        const msg = msgs[i]; //{content: "112",id: "14",sessionID: "11",time: 1695014999000,updateTime: "",userID: "1"} userID:1 为匿名用户，自己
+        const user = userMap[msg.userID];
+        // console.log(JSON.stringify(msg));
+        // console.log(JSON.stringify(user));
+        // console.log(checkUserMail(msg.userID));
+        const isSelf = checkUserMail(msg.userID);
+        const div = document.createElement("div");
+        div.className = "msg";
+        if (isSelf) {
+          div.classList.add("msg-r");
+        } else {
+          div.classList.add("msg-l");
+        }
+        const divTime = document.createElement("div");
+        divTime.className = "msg-time";
+        divTime.innerText = getTime(msg.time);
+        div.innerText = msg.content;
+        div.appendChild(divTime);
+        sessionContent.appendChild(div);
+      }
+    }
+    function getTime(ts) {
+      const date = new Date(ts);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const day = date.getDate();
+      const hour = String(date.getHours()).padStart(2, "0");
+      const min = String(date.getMinutes()).padStart(2, "0");
+      const sec = String(date.getSeconds()).padStart(2, "0");
+      return `${year}-${month}-${day} ${hour}:${min}:${sec}`;
+    }
+    function checkUserMail(id) {
+      if (id == "-1") {
+        return false;
+      } else if (id == "-2") {
+        return true;
+      }
+
+      if (userMap == null) {
+        return false;
+      }
+      if (userMap[id] == null) {
+        // console.log(userMap, id);
+        return false;
+      }
+      const uMail = userMap[id].mail;
+      if (uMail == selfMail) {
+        return true;
+      }
+      return false;
+    }
+    function scrollBottom(duration = 350) {
+      if (!isScroll) {
+        console.log(">>> 禁止滚动到最下 <<<");
+        return;
+      }
+      let start = 0;
+      let end = 0;
+      let change = 0;
+      let startTime = null;
+      if (duration < 300) {
+        duration = 300;
+      }
+      function animateScroll(currentTime) {
+        if (startTime === null) startTime = currentTime;
+        const timeElapsed = currentTime - startTime;
+        const progress = Math.min(timeElapsed / duration, 1);
+        if (list != null) {
+          list.scrollTop = start + change * progress;
+        }
+        if (progress < 1) {
+          window.requestAnimationFrame(animateScroll);
+        }
+      }
+      const list = document.getElementById("session-content");
+      if (list != null) {
+        start = list.scrollTop;
+        end = list.scrollHeight;
+        change = end - start;
+
+        if (list != null) {
+          const start = list.scrollTop;
+          const end = list.scrollHeight;
+          change = end - start;
+          window.requestAnimationFrame(animateScroll);
+        }
+      }
+    }
+  </script>
+  <style>
+    .mdi {
+      font-size: 2em;
+    }
+
+    .icon-button {
+      position: fixed; /* 固定位置 */
+      z-index: 1; /* 在其他元素之上 */
+      bottom: 30px; /* 距离底部 30px */
+      left: 30px; /* 距离右边 30px */
+      background-color: #4caf50; /* 背景颜色 */
+      border: none; /* 去掉边框 */
+      color: white; /* 文字和图标的颜色 */
+      padding: 8px 12px; /* 内边距 */
+      text-align: center; /* 文字居中 */
+      text-decoration: none; /* 去掉下划线 */
+      display: inline-block;
+      font-size: 16px; /* 文字和图标的大小 */
+      margin: 4px 4px;
+      cursor: pointer; /* 鼠标悬停时变为手形 */
+      border-radius: 30px; /* 圆角边框 */
+    }
+
+    .icon-button:hover {
+      background-color: #45a049; /* 鼠标悬停时的背景颜色 */
+    }
+
+    /* 会话窗口背景 */
+    #session-background {
+      display: none; /* 默认隐藏 */
+      position: fixed; /* 固定位置 */
+      z-index: 1; /* 在其他元素之上 */
+      left: 0;
+      top: 0;
+      width: 100%; /* 全屏宽 */
+      height: 100%; /* 全屏高 */
+      overflow: auto; /* 启用滚动 */
+      background-color: rgba(0, 0, 0, 0); /* 黑色背景，半透明 */
+    }
+
+    /* 会话窗口 */
+    #session-view {
+      position: absolute;
+      bottom: 100px;
+      left: 30px;
+      width: 300px;
+      height: 80vh;
+      background-color: #898989;
+      border-radius: 10px;
+      border: 1px solid #4caf50;
+      /* 动画 */
+      transform: scale(0); /* 初始状态：缩小到 0 */
+      transition: transform 0.3s; /* 过渡时间：0.5 秒 */
+      transform-origin: left bottom; /* 动画起始点在左下角 */
+    }
+    /* 打开和关闭状态 */
+    #session-view.open {
+      transform: scale(1); /* 打开状态：放大到原始大小 */
+    }
+    #session-view.close {
+      transform: scale(0); /* 关闭状态：缩小到 0 */
+    }
+
+    /* 会话窗口标题 */
+    #session-title {
+      height: 50px;
+      background-color: #4caf50;
+      border-radius: 10px 10px 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5em;
+      color: white;
+    }
+    /* 会话窗口标题输入框 */
+    #session-title input {
+      width: 85%;
+      height: 70%;
+      border-radius: 5px;
+      border: none;
+      outline: none;
+      padding: 0px 10px;
+      font-size: 0.7em;
+    }
+
+    /* 会话窗口内容 */
+    #session-content {
+      height: calc(100% - 100px);
+      background-color: #ffffff;
+      overflow-y: scroll;
+    }
+
+    /** 信息气泡 */
+    #session-content .msg {
+      position: relative;
+      display: inline-block;
+      width: auto;
+      padding: 10px 15px;
+      margin: 10px 7px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #ccc;
+      word-wrap: break-word;
+      word-break: break-all;
+      overflow: visible;
+      line-height: 1.5;
+      font-size: 14px;
+      color: #333;
+    }
+
+    #session-content .msg::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: 10px;
+      height: 10px;
+      transform: translate(0, -50%) rotate(45deg);
+    }
+
+    #session-content .msg-l {
+      background: #fff;
+    }
+    #session-content .msg-l::after {
+      left: -5px;
+      background: #fff;
+      border-left: 1px solid #dddddd;
+      border-bottom: 1px solid #dddddd;
+    }
+    #session-content .msg-r {
+      float: right;
+      background: #95ec69;
+    }
+    #session-content .msg-r::after {
+      right: -5px;
+      background: #95ec69;
+    }
+
+    #session-content .msg-time {
+      font-size: 12px;
+      color: #808080;
+    }
+    /* 隐藏滚动条 */
+    #session-content::-webkit-scrollbar {
+      display: none;
+    }
+    /* 会话窗口内容消息 */
+    .session-msg {
+      width: 100%;
+      height: auto;
+      display: flex;
+      align-items: center;
+      padding: 10px;
+    }
+    /* 会话窗口内容对方消息 */
+    .session-msg-other {
+      justify-content: flex-end;
+    }
+    /* 会话窗口内容我发送的消息 */
+    .session-msg-me {
+      justify-content: flex-start;
+    }
+
+    /* 会话窗口发送栏 */
+    #session-send-bar {
+      height: 50px;
+      background-color: #4caf50;
+      border-radius: 0 0 10px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #session-send-bar input {
+      width: 85%;
+      height: 70%;
+      border-radius: 5px;
+      border: none;
+      outline: none;
+      padding: 0px 10px;
+      margin-left: 10px;
+      font-size: 0.7em;
+    }
+    #session-send-msg-btn {
+      width: 10%;
+      height: 70%;
+      border-radius: 5px;
+      border: none;
+      outline: none;
+      padding: 5px 15px 15px 5px;
+      margin: 5px;
+      font-size: 0.7em;
+      background-color: #4caf50;
+      color: #fff;
+      cursor: pointer; /* 鼠标悬停时变为手形 */
+    }
+    #session-send-msg-btn:hover {
+      background-color: #45a049; /* 鼠标悬停时的背景颜色 */
+    }
+    #session-send-msg-btn .error {
+      color: #f44336 !important;
+    }
+  </style>
+</html>
