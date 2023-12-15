@@ -15,21 +15,17 @@
     <div id="session-background">
       <div id="session-view">
         <div id="session-title">
-          <input
-            id="session-mail"
-            type="text"
-            value=""
-            placeholder="为了方便交流，请输入您的邮件地址"
-          />
+          <span id="session-title-text">会话</span>
+          <span id="session-title-close">×</span>
         </div>
         <div id="session-content"></div>
         <div id="session-send-bar">
-          <input
+          <textarea
             id="session-send-msg-input"
             type="text"
             value=""
             placeholder="请输入您的消息"
-          />
+          ></textarea>
           <button id="session-send-msg-btn" onclick="sendMessage()">
             <i class="mdi mdi-send"></i>
           </button>
@@ -144,6 +140,17 @@
           sendMessage();
         }
       });
+
+      // 监听textarea的高度变化修改textarea的高度
+      const textarea = document.getElementById("session-send-msg-input");
+      textarea.addEventListener("input", function () {
+        if (textarea.scrollHeight <= 100) {
+          textarea.style.height = textarea.scrollHeight + "px";
+        } else {
+          textarea.style.height = "100px";
+        }
+        scrollBottom(300);
+      });
     });
 
     let messageList = []; // 消息列表
@@ -156,8 +163,8 @@
     let isScroll = true; // 是否滚动到最下
     let isSending = false; // 是否正在发送消息
 
-    const api = "http://127.0.0.1:36040";
-    const api2 = "http://127.0.0.1:36041";
+    const api = "http://192.168.1.46:36040";
+    const api2 = "http://192.168.1.46:36041";
 
     function getGuestToken() {
       token = null;
@@ -280,6 +287,8 @@
             default:
               break;
           }
+
+          setJustifyContent();
         })
         .catch((error) => {
           console.log(error);
@@ -306,9 +315,16 @@
           console.log(error);
           return;
         }
-        // console.log(ed);
-        for (let i = 0; i < ed.length; i++) {
-          const e = ed[i];
+        console.log(">> ed <<", ed);
+        const msgs = ed.msg;
+        const users = ed.user;
+        if (userMap == null) {
+          userMap = users;
+        } else {
+          userMap = Object.assign(userMap, users);
+        }
+        for (let i = 0; i < msgs.length; i++) {
+          const e = msgs[i];
           let isHave = false;
           // console.log(e);
           let userID = e.userID;
@@ -331,12 +347,14 @@
             }
           } else {
             isHave = true;
-
-            if (!Object.prototype.hasOwnProperty.call(userMap, userID)) {
-              userMap[userID] = {
-                nick: e.user.nick,
-                mail: e.user.mail,
-              };
+            if (userMap != null) {
+              console.log(">>>", userMap, userID);
+              if (!Object.prototype.hasOwnProperty.call(userMap, userID)) {
+                userMap[userID] = {
+                  nick: e.user.nick,
+                  mail: e.user.mail,
+                };
+              }
             }
           }
           newMsgList.push({
@@ -357,7 +375,6 @@
         scrollBottom(300);
       };
     }
-
     function sendMessage() {
       if (isSending) {
         return;
@@ -408,6 +425,7 @@
           switch (res.code) {
             case 10000:
               msgInput.value = "";
+              msgInput.style.height = "20px";
               const data = res.data;
               selfID = data.userID;
               sessionID = data.sessionID;
@@ -465,20 +483,66 @@
         // console.log(JSON.stringify(user));
         // console.log(checkUserMail(msg.userID));
         const isSelf = checkUserMail(msg.userID);
-        const div = document.createElement("div");
-        div.className = "msg";
+
+        // 气泡
+        const msgdiv = document.createElement("div");
+        msgdiv.className = "msg";
         if (isSelf) {
-          div.classList.add("msg-r");
+          msgdiv.classList.add("msg-r");
         } else {
-          div.classList.add("msg-l");
+          msgdiv.classList.add("msg-l");
         }
+
+        // 气泡中内容和时间
         const divTime = document.createElement("div");
         divTime.className = "msg-time";
         divTime.innerText = getTime(msg.time);
-        div.innerText = msg.content;
-        div.appendChild(divTime);
+        const divContent = document.createElement("div");
+        divContent.innerText = msg.content;
+        msgdiv.appendChild(divContent);
+        msgdiv.appendChild(divTime);
+
+        // 头像
+        const userAvatar = document.createElement("div");
+        userAvatar.className = "userAvatar";
+        if (isSelf) {
+          userAvatar.innerHTML = `<i class="mdi mdi-account-circle"></i>`;
+        } else {
+          userAvatar.innerHTML = `<i class="mdi mdi-account-circle-outline"></i>`;
+        }
+
+        // 消息
+        const div = document.createElement("div");
+        div.classList.add("msgview");
+        if (isSelf) {
+          div.classList.add("msgview-r");
+          div.appendChild(msgdiv);
+          div.appendChild(userAvatar);
+        } else {
+          div.appendChild(userAvatar);
+          div.appendChild(msgdiv);
+        }
+
         sessionContent.appendChild(div);
       }
+      setJustifyContent(sessionContent);
+    }
+    function setJustifyContent(sessionContent = null) {
+      if (sessionContent == null) {
+        sessionContent = document.getElementById("session-content");
+      }
+      let contentHeight = 0;
+      const contents = sessionContent.getElementsByClassName("msgview");
+      for (let i = 0; i < contents.length; i++) {
+        const e = contents[i];
+        contentHeight += e.clientHeight;
+      }
+      if (contentHeight <= sessionContent.clientHeight) {
+        sessionContent.style.justifyContent = "flex-end";
+      } else if (sessionContent.style.justifyContent != "") {
+        sessionContent.style.justifyContent = "";
+      }
+      console.log(contentHeight, sessionContent.clientHeight);
     }
     function getTime(ts) {
       const date = new Date(ts);
@@ -549,6 +613,12 @@
     }
   </script>
   <style>
+    :root {
+      --session-main-color: #65c1c0;
+      --session-main-color-hover: #d8fffe;
+      --session-content-color: #9ae2e1;
+    }
+
     .mdi {
       font-size: 2em;
     }
@@ -558,7 +628,7 @@
       z-index: 1; /* 在其他元素之上 */
       bottom: 30px; /* 距离底部 30px */
       left: 30px; /* 距离右边 30px */
-      background-color: #4caf50; /* 背景颜色 */
+      background-color: var(--session-main-color); /* 背景颜色 */
       border: none; /* 去掉边框 */
       color: white; /* 文字和图标的颜色 */
       padding: 8px 12px; /* 内边距 */
@@ -572,7 +642,9 @@
     }
 
     .icon-button:hover {
-      background-color: #45a049; /* 鼠标悬停时的背景颜色 */
+      background-color: var(
+        --session-main-color-hover
+      ); /* 鼠标悬停时的背景颜色 */
     }
 
     /* 会话窗口背景 */
@@ -595,13 +667,15 @@
       left: 30px;
       width: 300px;
       height: 80vh;
-      background-color: #898989;
       border-radius: 10px;
-      border: 1px solid #4caf50;
+      box-shadow: 0 0 10px #ccc;
       /* 动画 */
       transform: scale(0); /* 初始状态：缩小到 0 */
       transition: transform 0.3s; /* 过渡时间：0.5 秒 */
       transform-origin: left bottom; /* 动画起始点在左下角 */
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
     }
     /* 打开和关闭状态 */
     #session-view.open {
@@ -613,31 +687,37 @@
 
     /* 会话窗口标题 */
     #session-title {
-      height: 50px;
-      background-color: #4caf50;
-      border-radius: 10px 10px 0 0;
       display: flex;
+      background-color: var(--session-main-color);
+      border-radius: 10px 10px 0 0;
       align-items: center;
-      justify-content: center;
-      font-size: 1.5em;
+      justify-content: space-between;
+      font-size: 14px;
       color: white;
+      padding-left: 20px;
+      padding-right: 20px;
     }
-    /* 会话窗口标题输入框 */
-    #session-title input {
-      width: 85%;
-      height: 70%;
-      border-radius: 5px;
-      border: none;
-      outline: none;
-      padding: 0px 10px;
-      font-size: 0.7em;
+    #session-title span {
+      height: 50px;
+      line-height: 50px;
+    }
+    #session-title-text {
+      text-align: left;
+    }
+    #session-title-close {
+      float: right;
+      text-align: right;
     }
 
     /* 会话窗口内容 */
     #session-content {
-      height: calc(100% - 100px);
+      height: 100%;
       background-color: #ffffff;
       overflow-y: scroll;
+      display: flex;
+      flex-direction: column;
+      margin-left: 4px;
+      /* justify-content: flex-end; */
     }
 
     /** 信息气泡 */
@@ -648,7 +728,7 @@
       padding: 10px 15px;
       margin: 10px 7px;
       border-radius: 10px;
-      box-shadow: 0 0 10px #ccc;
+      background-color: #eee;
       word-wrap: break-word;
       word-break: break-all;
       overflow: visible;
@@ -667,30 +747,65 @@
     }
 
     #session-content .msg-l {
-      background: #fff;
+      background: #eee;
     }
     #session-content .msg-l::after {
       left: -5px;
-      background: #fff;
+      background: #eee;
       border-left: 1px solid #dddddd;
       border-bottom: 1px solid #dddddd;
     }
     #session-content .msg-r {
-      float: right;
-      background: #95ec69;
+      /* float: right; */
+      background-color: var(--session-content-color);
     }
     #session-content .msg-r::after {
       right: -5px;
-      background: #95ec69;
+      background-color: var(--session-content-color);
     }
 
     #session-content .msg-time {
       font-size: 12px;
       color: #808080;
     }
+
+    #session-content .userAvatar {
+      width: 40px;
+      height: auto;
+    }
+    #session-content .userAvatar i {
+      font-size: 2.5em;
+    }
+
+    #session-content .msgview {
+      width: 100%;
+      height: auto;
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+    }
+    #session-content .msgview-r {
+      justify-content: flex-end;
+    }
     /* 隐藏滚动条 */
-    #session-content::-webkit-scrollbar {
+    /* #session-content::-webkit-scrollbar {
       display: none;
+    } */
+    #session-content::-webkit-scrollbar {
+      margin-top: 100px;
+      width: 4px;
+      height: 8px;
+      border-radius: 20px;
+    }
+    #session-content::-webkit-scrollbar-track {
+      background-color: #fff;
+    }
+    #session-content::-webkit-scrollbar-thumb {
+      background-color: var(--session-content-color);
+      border-radius: 4px;
+    }
+    #session-content::-webkit-scrollbar-thumb:hover {
+      background-color: var(--session-main-color);
     }
     /* 会话窗口内容消息 */
     .session-msg {
@@ -698,7 +813,6 @@
       height: auto;
       display: flex;
       align-items: center;
-      padding: 10px;
     }
     /* 会话窗口内容对方消息 */
     .session-msg-other {
@@ -711,22 +825,29 @@
 
     /* 会话窗口发送栏 */
     #session-send-bar {
-      height: 50px;
-      background-color: #4caf50;
-      border-radius: 0 0 10px 10px;
+      /* min-height: 150px; */
+      border-radius: 50px;
       display: flex;
       align-items: center;
       justify-content: center;
     }
-    #session-send-bar input {
+    #session-send-bar textarea {
       width: 85%;
-      height: 70%;
+      height: 20px;
+      /* height: 70%; */
+      /* min-height: 20px; 設置為一行的高度
+      max-height: 100px; */
       border-radius: 5px;
       border: none;
       outline: none;
       padding: 0px 10px;
       margin-left: 10px;
-      font-size: 0.7em;
+      font-size: 1.2em;
+      resize: none;
+      overflow-y: scroll;
+    }
+    #session-send-bar textarea::-webkit-scrollbar {
+      display: none;
     }
     #session-send-msg-btn {
       width: 10%;
@@ -737,12 +858,14 @@
       padding: 5px 15px 15px 5px;
       margin: 5px;
       font-size: 0.7em;
-      background-color: #4caf50;
-      color: #fff;
+      color: var(--session-main-color);
+      background-color: #fff;
       cursor: pointer; /* 鼠标悬停时变为手形 */
     }
     #session-send-msg-btn:hover {
-      background-color: #45a049; /* 鼠标悬停时的背景颜色 */
+      background-color: var(
+        --session-main-color-hover
+      ); /* 鼠标悬停时的背景颜色 */
     }
     #session-send-msg-btn .error {
       color: #f44336 !important;
