@@ -70,7 +70,7 @@ func sse(w http.ResponseWriter, req *http.Request, c chan []byte) {
 				}
 				keys = append(keys, k)
 				runMsgKey[k] = "run"
-				fmt.Println(">>>>>>>>>>>>", k, runMsgKey)
+				// fmt.Println(">>>>>>>>>>>>", k, runMsgKey)
 			}
 			// fmt.Println("SSE tick", fsid[0], messageSaveList, runMsgKey, keys)
 			sort.Slice(keys, func(i, j int) bool {
@@ -85,7 +85,15 @@ func sse(w http.ResponseWriter, req *http.Request, c chan []byte) {
 			timeNano := []int64{}
 			for i := 0; i < len(keys); i++ {
 				key := keys[i]
-				lastTimeStr := strings.Split(key, "_")[1]
+				keyList := strings.Split(key, "_")
+				if len(keyList) < 2 {
+					continue
+				}
+				sID := keyList[0]
+				if sID != fsid[0] {
+					continue
+				}
+				lastTimeStr := keyList[1]
 				timestampInt, err := strconv.ParseInt(lastTimeStr, 10, 64)
 				if err != nil {
 					continue
@@ -94,7 +102,9 @@ func sse(w http.ResponseWriter, req *http.Request, c chan []byte) {
 				tnOneSecondNano := tn - (sendWaitTime * 2 * 1e6)
 
 				if times == 0 {
+					lock1.Lock()
 					nowHandleSessionID[fsid[0]] = "run"
+					lock1.Unlock()
 					getKeys = append(getKeys, key)
 					timeNano = append(timeNano, timestampInt)
 				} else if tnOneSecondNano <= timestampInt && timestampInt <= tn {
@@ -104,12 +114,16 @@ func sse(w http.ResponseWriter, req *http.Request, c chan []byte) {
 					continue
 				}
 			}
+			// fmt.Println(">>>>>", getKeys)
 
 			if len(getKeys) <= 0 {
 				times++
+				lock1.Lock()
 				delete(nowHandleSessionID, fsid[0])
+				lock1.Unlock()
 				continue
 			}
+			// fmt.Println(">>>>>", getKeys)
 
 			data := []map[string]interface{}{}
 			userIDs := []string{}
@@ -151,13 +165,22 @@ func sse(w http.ResponseWriter, req *http.Request, c chan []byte) {
 				data = append(data, msg)
 			}
 
-			dataStr, err := json.Marshal(data)
+			userMap := map[string]interface{}{}
+			for i := 0; i < len(userIDs); i++ {
+				userMap[userIDs[i]] = userSaveMap[userIDs[i]]
+			}
+
+			reData := map[string]interface{}{}
+			reData["msg"] = data
+			reData["user"] = userMap
+
+			dataStr, err := json.Marshal(reData)
 			if err == nil {
-				fmt.Println("================")
-				fmt.Println("dataStr", string(dataStr))
+				times++
+				fmt.Println("========================")
+				fmt.Println(">>> dataStr", fsid[0], string(dataStr), userSaveMap)
 				fmt.Fprintf(w, "data:%s\n\n", string(dataStr))
 				flusher.Flush()
-				times++
 			}
 
 			reDelKeys := make(chan []string)
@@ -176,7 +199,7 @@ func sseHandleFunc(w http.ResponseWriter, req *http.Request) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	c := make(chan []byte)
-	go sse(w, req, c)
+	go sse(w, req, c) // 将 dataChan 传递给 sse
 	re := <-c
 	wg.Done()
 	w.Write([]byte(re))
@@ -187,7 +210,7 @@ func sseHandleFunc(w http.ResponseWriter, req *http.Request) {
 func sseWriteSQL(sessionID string, userID []string, msg []string, createTime []string, showErr bool, delKeys []string, reDelKeys chan []string) {
 	nMi, err := mysqlIsRun(showErr)
 	if err != nil {
-		mysqlClose(nMi, true)
+		mysqlClose(nMi, false)
 		reDelKeys <- []string{}
 		return
 	}
@@ -204,11 +227,11 @@ func sseWriteSQL(sessionID string, userID []string, msg []string, createTime []s
 		cTime = createTime[i]
 	}
 	values = strings.TrimRight(values, ",")
-	fmt.Println("delKeys", delKeys)
+	// fmt.Println("delKeys", delKeys)
 
 	inserts, err := nyaMList[nMi].AddRecord("message", key, "", values, nil)
 	if err != nil {
-		mysqlClose(nMi, true)
+		mysqlClose(nMi, false)
 		reDelKeys <- []string{}
 		return
 	}
@@ -225,13 +248,17 @@ func sseWriteSQL(sessionID string, userID []string, msg []string, createTime []s
 		return
 	}
 
+	lock1.Lock()
 	delete(nowHandleSessionID, sessionID)
+	lock1.Unlock()
 
-	fmt.Println("delKeys", delKeys)
+	// fmt.Println("delKeys", delKeys)
 
+	lock2.Lock()
 	for _, v := range delKeys {
 		delete(messageSaveList, v)
 	}
+	lock2.Unlock()
 
 	reDelKeys <- delKeys
 }

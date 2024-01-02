@@ -233,7 +233,9 @@ func sendMessage(w http.ResponseWriter, req *http.Request, c chan []byte, mI cha
 	// 	return
 	// }
 	// isDone := nyaRList[rI].SetString(redisKey, string(val))
+	lock2.Lock()
 	messageSaveList[redisKey] = redisVal
+	lock2.Unlock()
 
 	if userID != "" {
 		// redisUserStr := nyaRList[rI].GetString("u_" + userID)
@@ -247,7 +249,9 @@ func sendMessage(w http.ResponseWriter, req *http.Request, c chan []byte, mI cha
 		// }
 		// fmt.Println("redis", isDone, redisKey, redisVal)
 
+		lock3.Lock()
 		userSaveMap[userID] = userMap
+		lock3.Unlock()
 	}
 	// redisClose(rI, true)
 

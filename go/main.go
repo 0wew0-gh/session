@@ -3,14 +3,19 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 )
 
 var (
+	lock1              sync.Mutex
 	nowHandleSessionID map[string]string = map[string]string{} //当前正在处理的会话ID
 
-	messageSaveList map[string][]string          = map[string][]string{}          //消息列表
-	userSaveMap     map[string]map[string]string = map[string]map[string]string{} //用户列表
+	lock2           sync.Mutex
+	messageSaveList map[string][]string = map[string][]string{} //消息列表
+
+	lock3       sync.Mutex
+	userSaveMap map[string]map[string]string = map[string]map[string]string{} //用户列表
 
 	sendWaitTime int64 = 100 // 等待时间，单位毫秒
 )
