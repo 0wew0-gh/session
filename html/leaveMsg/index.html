@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div id="leaveMsg">
+      <div id="lm-top-btn" class="lmTopBtn">
+        <div class="top-btn-span">留言板</div>
+        <div id="lm-top-btn-r" class="top-btn-span">^</div>
+      </div>
+      <div class="form">
+        <input
+          class="lm-contain lm-input-border lm-input-border-color"
+          type="text"
+          id="lm-form-name"
+          name="name"
+          placeholder="* Name"
+          required
+        />
+        <p id="lm-name-warning" class="input-warning warning-err"></p>
+        <input
+          class="lm-contain lm-input-border lm-input-border-color"
+          type="text"
+          id="lm-form-mail"
+          name="mail"
+          placeholder="* Email (We will reply you via email in 24 hours)"
+          maxlength="150"
+          required
+        />
+        <p id="lm-mail-warning" class="input-warning">0/150</p>
+        <input
+          class="lm-contain lm-input-border lm-input-border-color"
+          type="text"
+          id="lm-form-phone"
+          name="phone"
+          placeholder="Phone/WhatsApp/WeChat (Very important)"
+          maxlength="100"
+        />
+        <p id="lm-phone-warning" class="input-warning">0/100</p>
+        <div
+          id="lm-form-msg-wrapper"
+          class="textarea-wrapper lm-input-border lm-input-border-color"
+        >
+          <textarea
+            class="lm-contain lm-textarea"
+            name="msg"
+            id="lm-form-msg"
+            cols="30"
+            rows="10"
+            placeholder="* Enter product details such as size, color, materials etc. and other specific requirements to receive an accurate quote."
+            maxlength="501"
+            required
+          ></textarea>
+        </div>
+        <p id="lm-msg-warning" class="input-warning">0/500</p>
+        <button
+          id="lm-form-btn-send"
+          class="lm-contain lm-input-border lm-input-border-color"
+        >
+          Send
+        </button>
+      </div>
+      <div class="lm-tooltips">
+        <div id="lm-tooltips-msg"></div>
+      </div>
+    </div>
+  </body>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      // 留言板
+      const leaveMsg = document.getElementById("leaveMsg");
+      const lmTopBtn = document.getElementById("lm-top-btn");
+      const lmTopBtnR = document.getElementById("lm-top-btn-r");
+      // 留言板打开和关闭
+      lmTopBtn.addEventListener("click", function () {
+        if (leaveMsg.classList.contains("open")) {
+          leaveMsg.classList.remove("open");
+          leaveMsg.classList.add("close");
+          lmTopBtnR.innerHTML = "^";
+        } else {
+          leaveMsg.classList.remove("close");
+          leaveMsg.classList.add("open");
+          lmTopBtnR.innerHTML = "v";
+        }
+      });
+
+      const name = document.getElementById("lm-form-name");
+      const nameWarning = document.getElementById("lm-name-warning");
+      const mail = document.getElementById("lm-form-mail");
+      const mailWarning = document.getElementById("lm-mail-warning");
+      const phone = document.getElementById("lm-form-phone");
+      const phoneWarning = document.getElementById("lm-phone-warning");
+      const msg = document.getElementById("lm-form-msg");
+      const msgWarning = document.getElementById("lm-msg-warning");
+      const msgWrapper = document.getElementById("lm-form-msg-wrapper");
+
+      name.addEventListener("input", function () {
+        if (name.value.length > 255) {
+          nameWarning.innerText = "Name too long";
+          objectSwitch(
+            name,
+            "lm-input-border-color-err",
+            "lm-input-border-color"
+          );
+        } else {
+          nameWarning.innerText = "";
+          objectSwitch(
+            name,
+            "lm-input-border-color",
+            "lm-input-border-color-err"
+          );
+        }
+      });
+      mail.addEventListener("input", function () {
+        mailWarning.innerText = mail.value.length + "/150";
+        if (mail.value.length > 150) {
+          mailWarning.innerText = "Email too long";
+          mailWarning.classList.add("warning-err");
+          objectSwitch(
+            mail,
+            "lm-input-border-color-err",
+            "lm-input-border-color"
+          );
+        } else {
+          mailWarning.classList.remove("warning-err");
+          objectSwitch(
+            mail,
+            "lm-input-border-color",
+            "lm-input-border-color-err"
+          );
+        }
+      });
+      phone.addEventListener("input", function () {
+        phoneWarning.innerText = phone.value.length + "/100";
+        if (phone.value.length > 100) {
+          phoneWarning.innerText = "Phone too long";
+          phoneWarning.classList.add("warning-err");
+          objectSwitch(
+            phone,
+            "lm-input-border-color-err",
+            "lm-input-border-color"
+          );
+        } else {
+          phoneWarning.classList.remove("warning-err");
+          objectSwitch(
+            phone,
+            "lm-input-border-color",
+            "lm-input-border-color-err"
+          );
+        }
+      });
+      msg.addEventListener("input", function () {
+        msgWarning.innerText = msg.value.length + "/500";
+        if (msg.value.length > 500) {
+          msgWarning.innerText = "Email too long";
+          msgWarning.classList.add("warning-err");
+          objectSwitch(
+            msgWrapper,
+            "lm-input-border-color-err",
+            "lm-input-border-color"
+          );
+        } else {
+          objectSwitch(
+            msgWrapper,
+            "lm-input-border-color",
+            "lm-input-border-color-err"
+          );
+          msgWarning.classList.remove("warning-err");
+        }
+      });
+
+      // 留言板发送按钮
+      const lmBtnSend = document.getElementById("lm-form-btn-send");
+      lmBtnSend.addEventListener("click", function () {
+        let isRequired = true;
+        if (name.value == "") {
+          objectSwitch(
+            name,
+            "lm-input-border-color-err",
+            "lm-input-border-color"
+          );
+          nameWarning.innerText = "Name is not empty";
+          isRequired = false;
+        } else if (name.value.length > 255) {
+          objectSwitch(
+            name,
+            "lm-input-border-color-err",
+            "lm-input-border-color"
+          );
+          isRequired = false;
+        } else {
+          objectSwitch(
+            name,
+            "lm-input-border-color",
+            "lm-input-border-color-err"
+          );
+          nameWarning.innerText = "";
+        }
+
+        if (mail.value == "") {
+          objectSwitch(
+            mail,
+            "lm-input-border-color-err",
+            "lm-input-border-color"
+          );
+          mailWarning.innerText = "Email is not empty";
+          mailWarning.classList.add("warning-err");
+          isRequired = false;
+        } else if (mail.value.length > 150) {
+          objectSwitch(
+            mail,
+            "lm-input-border-color-err",
+            "lm-input-border-color"
+          );
+          isRequired = false;
+        } else {
+          objectSwitch(
+            mail,
+            "lm-input-border-color",
+            "lm-input-border-color-err"
+          );
+          mailWarning.innerText = "";
+          mailWarning.classList.remove("warning-err");
+        }
+
+        if (phone.value.length > 100) {
+          objectSwitch(
+            phone,
+            "lm-input-border-color-err",
+            "lm-input-border-color"
+          );
+        } else {
+          objectSwitch(
+            phone,
+            "lm-input-border-color",
+            "lm-input-border-color-err"
+          );
+        }
+
+        if (msg.value == "") {
+          objectSwitch(
+            msgWrapper,
+            "lm-input-border-color-err",
+            "lm-input-border-color"
+          );
+          msgWarning.innerText = "Message is not empty";
+          msgWarning.classList.add("warning-err");
+          isRequired = false;
+        } else if (msg.value.length > 500) {
+          objectSwitch(
+            msgWrapper,
+            "lm-input-border-color-err",
+            "lm-input-border-color"
+          );
+          isRequired = false;
+        } else {
+          objectSwitch(
+            msgWrapper,
+            "lm-input-border-color",
+            "lm-input-border-color-err"
+          );
+          msgWarning.innerText = "";
+          msgWarning.classList.remove("warning-err");
+        }
+        if (!isRequired) {
+          return false;
+        }
+        sendLeaveMsg(name.value, mail.value, phone.value, msg.value, lmBtnSend);
+      });
+    });
+
+    const api = "http://192.168.1.46:36040";
+
+    function sendLeaveMsg(name, mail, phone, msg, btnSend) {
+      btnSend.disabled = true;
+      const btnSendInnerHTML = btnSend.innerHTML;
+      btnSend.innerText = "Sending...";
+
+      const toolTips = document.getElementsByClassName("lm-tooltips");
+      const toolTipsMsg = document.getElementById("lm-tooltips-msg");
+
+      const formData = new FormData();
+      formData.append("n", name);
+      formData.append("m", mail);
+      if (phone != "") {
+        formData.append("p", phone);
+      }
+      formData.append("msg", msg);
+      var currentUrl = window.location.href;
+      formData.append("page", currentUrl);
+      formData.append("se", 1); // 开启详细错误信息
+      formData.append("l", 2); // 中文提示
+
+      return fetch(api + "/setLeaveMsg/", {
+        method: "POST",
+        body: formData,
+      })
+        .then((response) => response.json())
+        .then((res) => {
+          btnSend.disabled = false;
+          btnSend.innerHTML = btnSendInnerHTML;
+          if (res.code == 10000) {
+            const data = res.msg;
+            toolTipsMsg.innerHTML = data;
+          }
+          objectSwitch(toolTips, "open", "close");
+          setTimeout(() => {
+            objectSwitch(toolTips, "close", "open");
+          }, 3000);
+        })
+        .catch((error) => {
+          console.log("error", error);
+          btnSend.classList.add("lm-form-background-color-err");
+          btnSend.innerHTML = "Send failed";
+          objectSwitch(toolTips, "open", "close");
+          setTimeout(() => {
+            btnSend.disabled = false;
+            btnSend.classList.remove("lm-form-background-color-err");
+            btnSend.innerHTML = btnSendInnerHTML;
+            objectSwitch(toolTips, "close", "open");
+          }, 3000);
+          console.error(error);
+        });
+    }
+    function objectSwitch(selectors, open, close) {
+      let object = null;
+      if (typeof selectors == "string") {
+        object = document.querySelector(selectors);
+      } else {
+        object = selectors;
+      }
+      if (object == null || object == undefined) {
+        return;
+      }
+      if (object instanceof HTMLCollection) {
+        for (let i = 0; i < object.length; i++) {
+          object[i].classList.remove(close);
+          object[i].classList.add(open);
+        }
+        return;
+      }
+      object.classList.remove(close);
+      object.classList.add(open);
+    }
+  </script>
+  <style>
+    :root {
+      --leaveMsg-main-color: #36a9e1;
+      --leaveMsg-border-color: #c7c7c7;
+      --leaveMsg-border-hover-color: #9a9a9a;
+      --leaveMsg-btn-color: #86c953;
+      --leaveMsg-btn-color-hover: #6aae3e;
+      --leaveMsg-error-color: #ff3f3f;
+      --leaveMsg-error-hover-color: red;
+    }
+    #leaveMsg {
+      width: 350px;
+      height: 500px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      border-radius: 20px 20px 0 0;
+      border: 1px solid var(--leaveMsg-main-color);
+      position: fixed;
+      right: 10px;
+      /* 动画 */
+      bottom: -461px;
+      transition: bottom 0.3s; /* 过渡时间：0.5 秒 */
+      /* transform-origin: left bottom; 动画起始点在左下角 */
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    /* 打开和关闭状态 */
+    #leaveMsg.open {
+      bottom: 0px; /* 打开状态：放大到原始大小 */
+    }
+    #leaveMsg.close {
+      bottom: -461px; /* 关闭状态：缩小到 0 */
+    }
+    #leaveMsg .form {
+      width: calc(100% - 20px);
+      height: calc(100% - 60px);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-start;
+    }
+    .lmTopBtn {
+      width: 100%;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: var(--leaveMsg-main-color);
+      border-radius: 18px 18px 0 0;
+      color: #fff;
+      cursor: pointer;
+    }
+    .lmTopBtn .top-btn-span {
+      padding: 0 15px;
+    }
+    .lm-contain {
+      width: calc(100% - 40px);
+      height: 40px;
+      padding: 0px 20px 0 20px;
+      margin: 0 0 10px 0;
+      border-radius: 25px;
+      font-size: 10pt;
+      outline: none;
+    }
+    .textarea-wrapper {
+      width: 100%;
+      height: calc(100% - 250px);
+      border-radius: 25px;
+      overflow: hidden;
+      margin: 0 0 10px 0;
+    }
+    .lm-textarea {
+      width: calc(100% - 40px);
+      height: 100%;
+      resize: none;
+      padding-top: 10px;
+      padding-bottom: 10px;
+      border: none;
+    }
+    .lm-textarea::-webkit-scrollbar {
+      width: 5px;
+    }
+    .lm-textarea::-webkit-scrollbar-track {
+      background-color: #f5f5f5;
+    }
+    .lm-textarea::-webkit-scrollbar-thumb {
+      background-color: var(--leaveMsg-border-color);
+      border-radius: 10px;
+    }
+    .lm-textarea::-webkit-scrollbar-thumb:hover {
+      background-color: var(--leaveMsg-border-hover-color);
+    }
+    .lm-input-border {
+      border-width: 1px;
+      border-style: solid;
+    }
+    .lm-input-border-color {
+      border-color: var(--leaveMsg-border-color);
+    }
+    .lm-input-border-color:focus {
+      border-color: var(--leaveMsg-border-hover-color);
+    }
+    .lm-input-border-color-err {
+      border-color: var(--leaveMsg-error-color);
+    }
+    .lm-input-border-color-err:focus {
+      border-color: var(--leaveMsg-error-hover-color);
+    }
+    #lm-form-btn-send {
+      background-color: var(--leaveMsg-btn-color);
+      color: #fff;
+    }
+    #lm-form-btn-send:hover {
+      background-color: var(--leaveMsg-btn-color-hover);
+    }
+    #lm-form-btn-send:disabled {
+      background-color: var(--leaveMsg-border-color);
+      color: #fff;
+    }
+    .lm-form-background-color-err {
+      background-color: var(--leaveMsg-error-color) !important;
+    }
+
+    .input-warning {
+      width: calc(100% - 40px);
+      height: 0px;
+      line-height: 0px;
+      margin: 0 0 8px 0;
+      font-size: 8pt;
+      color: #7b7b7b;
+      text-align: right;
+    }
+
+    .warning-err {
+      color: red;
+      text-align: left;
+    }
+
+    #leaveMsg .lm-tooltips {
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0);
+      border-radius: 20px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 100;
+      text-align: center;
+      display: flex; /* 添加这一行 */
+      justify-content: center; /* 添加这一行 */
+      align-items: center; /* 添加这一行 */
+      pointer-events: none;
+      /* 动画 */
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+    #leaveMsg .lm-tooltips.open {
+      opacity: 1;
+    }
+    #leaveMsg .lm-tooltips.close {
+      opacity: 0;
+    }
+
+    #leaveMsg .lm-tooltips #lm-tooltips-msg {
+      background-color: rgba(0, 0, 0, 0.6);
+      border-radius: 5px;
+      color: #fff;
+      font-size: 10pt;
+      padding: 10px;
+      pointer-events: none;
+    }
+  </style>
+</html>

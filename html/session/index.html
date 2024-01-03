@@ -111,10 +111,10 @@
             }
           });
 
-          setTimeout(function () {
-            sessionView.classList.remove("close");
-            sessionView.classList.add("open");
-          }, 0);
+          // setTimeout(function () {
+          sessionView.classList.remove("close");
+          sessionView.classList.add("open");
+          // }, 0);
           sse();
           sessionView.addEventListener("click", function (event) {
             event.stopPropagation();
