@@ -1,0 +1,32 @@
+# NPM
+node_modules
+# 系統快取檔案
+._*
+.DS_Store
+Thumbs.db
+__*
+# 备份和临时文件
+*.iml
+*.sw*
+*.un~
+.*.*~
+*.bak
+*.tmp
+*.tmp.*
+# 生成結果檔案
+/index.html
+dist/*
+bin/*
+*.exe
+# 日誌檔案
+*.log
+# 本地配置檔案
+web.config
+# 壓縮包
+*.7z
+*.zip
+*.xz
+*.tar.*
+# 其他
+.VSCodeCounter
+.idea
