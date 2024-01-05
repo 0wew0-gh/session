@@ -25,14 +25,35 @@ func sse(w http.ResponseWriter, req *http.Request, c chan []byte) {
 	}
 
 	req.ParseMultipartForm(32 << 20)
-	fsid, ishsid := req.Form["sid"]        //会话ID
-	fshowErr, ishshowErr := req.Form["se"] //是否显示错误信息
-	fl, ishl := req.Form["l"]              //语言
+	ft, isht := req.Form["t"]              // token
+	fsid, ishsid := req.Form["sid"]        // 会话ID
+	fshowErr, ishshowErr := req.Form["se"] // 是否显示错误信息
+	fl, ishl := req.Form["l"]              // 语言
 
 	localeID = setLanguage(ishl, fl)
 	showErr := false
 	if ishshowErr && fshowErr[0] == "1" {
 		showErr = true
+	}
+
+	if !isht {
+		c <- nyahttphandle.AlertInfoJsonKV(w, localeID, 2040, "p", "t")
+		return
+	}
+	userID := ""
+	userInfo, errCode, err := verifyToken(ft[0], showErr)
+	if err != nil {
+		c <- backErrorMsg(w, localeID, errCode, err, showErr, nil)
+		return
+	}
+	temp, ok := userInfo["id"]
+	if ok {
+		switch tempType := temp.(type) {
+		case string:
+			userID = tempType
+		case float64:
+			userID = fmt.Sprint(tempType)
+		}
 	}
 
 	if !ishsid {
@@ -130,6 +151,7 @@ func sse(w http.ResponseWriter, req *http.Request, c chan []byte) {
 			msgs := []string{}
 			createTime := []string{}
 			delKeys := []string{}
+			isWriteSQL := false
 			for i := 0; i < len(getKeys); i++ {
 				key := getKeys[i]
 
@@ -137,25 +159,27 @@ func sse(w http.ResponseWriter, req *http.Request, c chan []byte) {
 				if !ok {
 					continue
 				}
-
 				timestamp := timeNano[i] / 1e6
 
 				msg := map[string]interface{}{}
 
 				msg["time"] = timestamp
-				userID := valData[0]
+				uID := valData[0]
+				if userID == uID {
+					isWriteSQL = true
+				}
 
-				userMap, ok := userSaveMap[userID]
+				userMap, ok := userSaveMap[uID]
 				if !ok {
-					userMap["id"] = userID
+					userMap["id"] = uID
 					msg["user"] = userMap
 				}
 
-				msg["userID"] = userID
+				msg["userID"] = uID
 				msg["content"] = valData[1]
 
-				if userID != "" {
-					userIDs = append(userIDs, userID)
+				if uID != "" {
+					userIDs = append(userIDs, uID)
 					msgs = append(msgs, valData[1])
 					timeStr := time.Unix(0, timeNano[i]).In(cstSh).Format(timeFormat)
 					createTime = append(createTime, timeStr)
@@ -183,13 +207,14 @@ func sse(w http.ResponseWriter, req *http.Request, c chan []byte) {
 				flusher.Flush()
 			}
 
-			reDelKeys := make(chan []string)
+			if isWriteSQL {
+				reDelKeys := make(chan []string)
+				go sseWriteSQL(fsid[0], userIDs, msgs, createTime, showErr, delKeys, reDelKeys)
 
-			go sseWriteSQL(fsid[0], userIDs, msgs, createTime, showErr, delKeys, reDelKeys)
-
-			delKeys = <-reDelKeys
-			for _, v := range delKeys {
-				delete(runMsgKey, v)
+				delKeys = <-reDelKeys
+				for _, v := range delKeys {
+					delete(runMsgKey, v)
+				}
 			}
 		}
 	}
