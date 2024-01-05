@@ -19,10 +19,6 @@ export default class Session {
   api = "http://192.168.1.46:36040";
   api2 = "http://192.168.1.46:36041";
 
-  openSessionView: HTMLButtonElement = document.getElementById(
-    "open-session-view"
-  ) as HTMLButtonElement;
-
   messageList: msgItem[] = []; // 消息列表
   userMap: any | null = null; // 用户列表
   selfMail: string | null = null; // 用户邮箱
@@ -34,7 +30,10 @@ export default class Session {
   isSending = false; // 是否正在发送消息
 
   constructor() {
-    this.openSessionView.addEventListener("click", () => {
+    const openSessionView: HTMLButtonElement = document.getElementById(
+      "openSessionView"
+    ) as HTMLButtonElement;
+    openSessionView.addEventListener("click", () => {
       this.token = localStorage.getItem("token");
       this.selfMail = localStorage.getItem("user");
       this.sessionID = localStorage.getItem("sessionID");
@@ -68,7 +67,100 @@ export default class Session {
           }
         });
       }
+
+      const sessionBackground = document.getElementById(
+        "session-background"
+      ) as HTMLDivElement | null;
+      const sessionView = document.getElementById(
+        "session-view"
+      ) as HTMLDivElement | null;
+      if (sessionBackground != null) {
+        sessionBackground.style.display = "block";
+
+        // 防止拖动时误触点击事件
+        let isDragging = false;
+        sessionBackground.addEventListener("mousedown", function () {
+          isDragging = false;
+        });
+        sessionBackground.addEventListener("mousemove", function () {
+          isDragging = true;
+        });
+        // 防止拖动时误触点击事件 方法2
+        // sessionBackground.addEventListener("mousedown", function (event) {
+        //   isDragging = false;
+        //   sessionBackground.addEventListener("mousemove", handleMouseMove);
+        // });
+        // sessionBackground.addEventListener("mouseup", function (event) {
+        //   sessionBackground.removeEventListener("mousemove", handleMouseMove);
+        // });
+        // function handleMouseMove(event) {
+        //   isDragging = true;
+        // }
+        // 点击背景关闭会话窗口
+        sessionBackground.addEventListener("click", () => {
+          if (!isDragging) {
+            if (sessionView != null) {
+              sessionView.classList.remove("open");
+              sessionView.classList.add("close");
+            }
+            this.messageList = [];
+            if (msgContent != null) {
+              msgContent.innerHTML = "";
+            }
+            setTimeout(function () {
+              sessionBackground.style.display = "none";
+            }, 300); // 等待动画完成后再隐藏 session-view
+          }
+        });
+      }
+
+      this.sse();
+      if (sessionView != null) {
+        sessionView.classList.remove("close");
+        sessionView.classList.add("open");
+        sessionView.addEventListener("click", function (event) {
+          event.stopPropagation();
+        });
+      }
     });
+
+    //   token = "bddb3db07611d03d18dd5e0412b936f8";
+
+    const msgContent = document.getElementById(
+      "session-content"
+    ) as HTMLDivElement | null;
+    if (msgContent != null) {
+      msgContent.addEventListener("scroll", () => {
+        const scrollTop = msgContent.scrollTop;
+        const scrollHeight = msgContent.scrollHeight;
+        const clientHeight = msgContent.clientHeight;
+        if (scrollTop + clientHeight >= scrollHeight) {
+          this.isScroll = true;
+        } else {
+          this.isScroll = false;
+        }
+      });
+    }
+
+    // 监听textarea的高度变化修改textarea的高度
+    const textarea = document.getElementById(
+      "session-send-msg-input"
+    ) as HTMLTextAreaElement | null;
+    if (textarea != null) {
+      textarea.addEventListener("keydown", (event) => {
+        if (event.keyCode == 13) {
+          this.sendMessage();
+        }
+      });
+      textarea.addEventListener("input", () => {
+        if (textarea.scrollHeight <= 100) {
+          textarea.style.height = textarea.scrollHeight + "px";
+        } else {
+          textarea.style.height = "100px";
+        }
+        this.scrollBottom(300);
+      });
+    }
   }
 
   getGuestToken(): Promise<void> {
