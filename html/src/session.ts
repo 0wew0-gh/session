@@ -212,10 +212,8 @@ export default class Session {
         switch (res.code) {
           case 10000:
             return true;
-            break;
           default:
             return false;
-            break;
         }
       });
   }
