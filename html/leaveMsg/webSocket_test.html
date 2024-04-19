@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div id="msgContain"></div>
+    <input type="text" name="msg" id="msg" />
+    <button id="btnSend">Send</button>
+  </body>
+  <script>
+    // 创建一个 WebSocket 连接
+    var socket = new WebSocket("ws://localhost:8866/chat?user_id=2");
+    socket.onopen = () => {};
+
+    let messageQueue = ["1", "2"];
+    const msgq = messageQueue.shift();
+    console.log(msgq, messageQueue);
+
+    // 封装一个发送消息的函数，返回一个 Promise
+    function sendMessage(message) {
+      const msg = {
+        userid: 1,
+        data: message,
+      };
+      console.log("sendMessage: " + msg);
+      return new Promise((resolve, reject) => {
+        console.log("Promise: " + msg);
+        console.log("msg", msg);
+        socket.send(JSON.stringify(msg));
+        resolve();
+        socket.onerror = (error) => {
+          reject(error);
+        };
+      });
+    }
+
+    // 封装一个接收消息的函数，返回一个 Promise
+    function receiveMessage() {
+      return new Promise((resolve, reject) => {
+        socket.onmessage = (event) => {
+          resolve(event.data);
+        };
+        socket.onerror = (error) => {
+          reject(error);
+        };
+      });
+    }
+
+    // 使用 async/await 语法发送和接收消息
+    async function communicate(msg) {
+      try {
+        console.log("communicate: " + msg);
+        await sendMessage(msg);
+        var message = await receiveMessage();
+        console.log("Received: " + message);
+      } catch (error) {
+        console.log("WebSocket Error: " + error);
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const btn = document.getElementById("btnSend");
+      btn.addEventListener("click", () => {
+        const msg = document.getElementById("msg").value;
+        communicate(msg);
+      });
+    });
+  </script>
+</html>

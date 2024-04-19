@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Document</title>
+    </head>
+    <body>
+        <input type="text" id="test" />
+        <div id="show"></div>
+        <div id="showDiv"></div>
+    </body>
+    <script>
+        var show = document.getElementById("show");
+        var showDiv = document.getElementById("showDiv");
+        var test = document.getElementById("test");
+        test.addEventListener("keyup", function (e) {
+            const isNumber = /^\d+$/.test(event.key);
+            showDiv.innerText = "isNumber: " + isNumber;
+            if (!isNumber) {
+                test.value = test.value.replace(/[^0-9]/g, "");
+            }
+            console.log(e.keyCode);
+            show.innerText = test.value;
+            if (e.keyCode == 13) {
+                alert("enter");
+            }
+        });
+    </script>
+</html>
